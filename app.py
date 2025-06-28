@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, request, render_template_string, redirect, url_for
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import os
@@ -14,34 +13,16 @@ load_dotenv()
 app = Flask(__name__)
 
 # Google Sheets API configuration
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+SERVICE_ACCOUNT_FILE = 'service_account.json'
+SCOPES = ['https://www.googleapis.com/google-api-python-client.googleapis.com/v1/projects/your-project-id/locations/us-central1/services/sheets.googleapis.com/scopes/https://www.googleapis.com/auth/spreadsheets.readonly']
 SPREADSHEET_ID = '1xB33OtYu_PQJjQLgGvg_TCcQCFlwhiUcXSUVj1w9_lw'
 RANGE_NAME = 'Sheet1!A:Z'  # Adjust based on your sheet structure
 
 SETTINGS_FILE = 'settings.json'
 
 def get_google_sheets_service():
-    """Get authenticated Google Sheets service."""
-    creds = None
-
-    # Load existing credentials if available
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-
-    # If no valid credentials available, let the user log in
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
+    creds = Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     return build('sheets', 'v4', credentials=creds)
 
 def fetch_sheet_data():
@@ -53,8 +34,8 @@ def fetch_sheet_data():
             spreadsheetId=SPREADSHEET_ID,
             range=RANGE_NAME
         ).execute()
-
         values = result.get('values', [])
+        print("Fetched sheet data:", values)
         return values
     except Exception as e:
         print(f"Error fetching data: {e}")

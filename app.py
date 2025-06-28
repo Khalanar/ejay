@@ -14,7 +14,7 @@ app = Flask(__name__)
 
 # Google Sheets API configuration
 SERVICE_ACCOUNT_FILE = 'service_account.json'
-SCOPES = ['https://www.googleapis.com/google-api-python-client.googleapis.com/v1/projects/your-project-id/locations/us-central1/services/sheets.googleapis.com/scopes/https://www.googleapis.com/auth/spreadsheets.readonly']
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 SPREADSHEET_ID = '1xB33OtYu_PQJjQLgGvg_TCcQCFlwhiUcXSUVj1w9_lw'
 RANGE_NAME = 'Sheet1!A:Z'  # Adjust based on your sheet structure
 

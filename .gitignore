@@ -29,6 +29,7 @@ ENV/
 # Google API credentials
 credentials.json
 token.pickle
+service_account.json
 
 # Environment variables
 .env

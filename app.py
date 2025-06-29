@@ -4,7 +4,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import os
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import json
 from dotenv import load_dotenv
 
@@ -41,17 +41,48 @@ def fetch_sheet_data():
         print(f"Error fetching data: {e}")
         return []
 
-def get_current_week():
+def get_settings():
     try:
         with open(SETTINGS_FILE, 'r') as f:
-            settings = json.load(f)
-            return settings.get('current_week', 1)
+            return json.load(f)
+    except Exception:
+        return {"current_week": 1, "start_date": "2025-06-29", "auto_week": False}
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f)
+
+def calculate_week(start_date_str):
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        today = date.today()
+        days_passed = (today - start_date).days
+        if days_passed < 0:
+            return 1
+        return (days_passed // 7) + 1
     except Exception:
         return 1
 
+def get_current_week():
+    settings = get_settings()
+    if settings.get("auto_week", False):
+        return calculate_week(settings.get("start_date", "2025-06-29"))
+    return settings.get("current_week", 1)
+
 def set_current_week(week):
-    with open(SETTINGS_FILE, 'w') as f:
-        json.dump({'current_week': week}, f)
+    settings = get_settings()
+    settings["current_week"] = week
+    save_settings(settings)
+
+def set_start_date(start_date):
+    settings = get_settings()
+    settings["start_date"] = start_date
+    save_settings(settings)
+
+def set_auto_week(auto_week):
+    settings = get_settings()
+    settings["auto_week"] = auto_week
+    save_settings(settings)
 
 def get_exercises_for_day(day, sheet_data, week=None):
     """Extract exercises for a specific day (and optionally week) from sheet data."""
@@ -116,10 +147,17 @@ SETTINGS_PAGE = '''
     <title>Set Current Week</title>
 </head>
 <body>
-    <h1>Set Current Week</h1>
+    <h1>Settings</h1>
     <form method="post">
         <label for="week">Week Number:</label>
-        <input type="number" id="week" name="week" min="1" value="{{ current_week }}" required>
+        <input type="number" id="week" name="week" min="1" value="{{ current_week }}" required {% if auto_week %}disabled{% endif %}>
+        <br><br>
+        <label for="start_date">Start Date (YYYY-MM-DD):</label>
+        <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+        <br><br>
+        <label for="auto_week">Calculate week automatically:</label>
+        <input type="checkbox" id="auto_week" name="auto_week" value="true" {% if auto_week %}checked{% endif %}>
+        <br><br>
         <button type="submit">Save</button>
     </form>
     {% if message %}<p>{{ message }}</p>{% endif %}
@@ -130,15 +168,25 @@ SETTINGS_PAGE = '''
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     message = ''
+    settings = get_settings()
     if request.method == 'POST':
         try:
-            week = int(request.form['week'])
-            set_current_week(week)
-            message = f"Week updated to {week}."
+            auto_week = request.form.get('auto_week') == 'true'
+            start_date = request.form.get('start_date', settings.get('start_date', '2025-06-29'))
+            if auto_week:
+                set_auto_week(True)
+                set_start_date(start_date)
+                message = f"Auto week calculation enabled. Start date set to {start_date}."
+            else:
+                week = int(request.form['week'])
+                set_current_week(week)
+                set_auto_week(False)
+                set_start_date(start_date)
+                message = f"Week updated to {week}. Start date set to {start_date}."
         except Exception:
             message = "Invalid input."
-    current_week = get_current_week()
-    return render_template_string(SETTINGS_PAGE, current_week=current_week, message=message)
+    settings = get_settings()
+    return render_template_string(SETTINGS_PAGE, current_week=settings.get('current_week', 1), start_date=settings.get('start_date', '2025-06-29'), auto_week=settings.get('auto_week', False), message=message)
 
 @app.route('/health', methods=['GET'])
 def health_check():

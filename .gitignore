@@ -34,6 +34,9 @@ service_account.json
 # Environment variables
 .env
 
+# Settings file (contains API keys)
+settings.json
+
 # IDE
 .vscode/
 .idea/
